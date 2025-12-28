@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Timestamp } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { subscribeToWallets, subscribeToTransactions, subscribeToCategories } from '../services/firestore';
 import { formatCurrency, getMonthRange, getMonthName, calculateTotals, groupTransactionsByDate } from '../utils/helpers';
+import { Wallet, Transaction, Category } from '../types';
 
-const Dashboard = () => {
+const Dashboard = (): JSX.Element => {
     const { user } = useAuth();
-    const [wallets, setWallets] = useState([]);
-    const [transactions, setTransactions] = useState([]);
-    const [categories, setCategories] = useState([]);
-    const [currentDate, setCurrentDate] = useState(new Date());
-    const [loading, setLoading] = useState(true);
+    const [wallets, setWallets] = useState<Wallet[]>([]);
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [currentDate, setCurrentDate] = useState<Date>(new Date());
+    const [loading, setLoading] = useState<boolean>(true);
 
     const { start, end } = getMonthRange(currentDate);
 
@@ -22,7 +24,9 @@ const Dashboard = () => {
         const unsubTransactions = subscribeToTransactions(user.uid, (txs) => {
             // Filter by current month
             const filtered = txs.filter(t => {
-                const date = t.date?.toDate ? t.date.toDate() : new Date(t.date);
+                const date = (t.date as unknown as Timestamp)?.toDate
+                    ? (t.date as unknown as Timestamp).toDate()
+                    : new Date(t.date);
                 return date >= start && date <= end;
             });
             setTransactions(filtered);
@@ -34,15 +38,15 @@ const Dashboard = () => {
             unsubCategories();
             unsubTransactions();
         };
-    }, [user, currentDate]);
+    }, [user, currentDate, start, end]);
 
     const totalBalance = wallets.reduce((sum, w) => sum + (w.balance || 0), 0);
     const { income, expense } = calculateTotals(transactions);
     const groupedTransactions = groupTransactionsByDate(transactions);
 
-    const getCategoryById = (id) => categories.find(c => c.id === id);
+    const getCategoryById = (id: string): Category | undefined => categories.find(c => c.id === id);
 
-    const navigateMonth = (direction) => {
+    const navigateMonth = (direction: number): void => {
         setCurrentDate(prev => {
             const newDate = new Date(prev);
             newDate.setMonth(newDate.getMonth() + direction);

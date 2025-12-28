@@ -1,22 +1,35 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, FormEvent, ChangeEvent, MouseEvent } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { subscribeToWallets, addWallet, updateWallet, deleteWallet } from '../services/firestore';
+import { subscribeToWallets, addWallet, updateWallet, deleteWallet, WalletInput } from '../services/firestore';
 import { formatCurrency } from '../utils/helpers';
+import { Wallet } from '../types';
 
-const WALLET_TYPES = [
+interface WalletType {
+    value: 'cash' | 'bank' | 'e-wallet' | 'credit';
+    label: string;
+    icon: string;
+}
+
+const WALLET_TYPES: WalletType[] = [
     { value: 'cash', label: 'Cash', icon: '💵' },
     { value: 'bank', label: 'Bank', icon: '🏦' },
-    { value: 'ewallet', label: 'E-Wallet', icon: '📱' },
+    { value: 'e-wallet', label: 'E-Wallet', icon: '📱' },
     { value: 'credit', label: 'Credit Card', icon: '💳' },
 ];
 
-const Wallets = () => {
+interface FormData {
+    name: string;
+    type: 'cash' | 'bank' | 'e-wallet' | 'credit';
+    balance: string;
+}
+
+const Wallets = (): JSX.Element => {
     const { user } = useAuth();
-    const [wallets, setWallets] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [showModal, setShowModal] = useState(false);
-    const [editingWallet, setEditingWallet] = useState(null);
-    const [formData, setFormData] = useState({
+    const [wallets, setWallets] = useState<Wallet[]>([]);
+    const [loading, setLoading] = useState<boolean>(true);
+    const [showModal, setShowModal] = useState<boolean>(false);
+    const [editingWallet, setEditingWallet] = useState<Wallet | null>(null);
+    const [formData, setFormData] = useState<FormData>({
         name: '',
         type: 'cash',
         balance: '0'
@@ -35,7 +48,7 @@ const Wallets = () => {
 
     const totalBalance = wallets.reduce((sum, w) => sum + (w.balance || 0), 0);
 
-    const openModal = (wallet = null) => {
+    const openModal = (wallet: Wallet | null = null): void => {
         if (wallet) {
             setEditingWallet(wallet);
             setFormData({
@@ -50,18 +63,18 @@ const Wallets = () => {
         setShowModal(true);
     };
 
-    const closeModal = () => {
+    const closeModal = (): void => {
         setShowModal(false);
         setEditingWallet(null);
         setFormData({ name: '', type: 'cash', balance: '0' });
     };
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
         e.preventDefault();
-        if (!formData.name.trim()) return;
+        if (!formData.name.trim() || !user) return;
 
         const walletType = WALLET_TYPES.find(t => t.value === formData.type);
-        const data = {
+        const data: WalletInput = {
             name: formData.name.trim(),
             type: formData.type,
             icon: walletType?.icon || '💳',
@@ -80,8 +93,8 @@ const Wallets = () => {
         }
     };
 
-    const handleDelete = async () => {
-        if (!editingWallet) return;
+    const handleDelete = async (): Promise<void> => {
+        if (!editingWallet || !user) return;
         if (window.confirm('Delete this wallet? This will not delete associated transactions.')) {
             try {
                 await deleteWallet(user.uid, editingWallet.id);
@@ -156,7 +169,7 @@ const Wallets = () => {
             {/* Modal */}
             {showModal && (
                 <div className="modal-overlay" onClick={closeModal}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-content" onClick={(e: MouseEvent) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h2 className="modal-title">
                                 {editingWallet ? 'Edit Wallet' : 'New Wallet'}
@@ -174,7 +187,7 @@ const Wallets = () => {
                                         className="form-input"
                                         placeholder="e.g., My Bank Account"
                                         value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                        onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, name: e.target.value })}
                                         required
                                     />
                                 </div>
@@ -203,7 +216,7 @@ const Wallets = () => {
                                             className="form-input"
                                             placeholder="0"
                                             value={formData.balance}
-                                            onChange={(e) => setFormData({ ...formData, balance: e.target.value })}
+                                            onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, balance: e.target.value })}
                                         />
                                     </div>
                                 )}

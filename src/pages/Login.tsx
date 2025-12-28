@@ -1,15 +1,16 @@
-import { useState } from 'react';
+import { useState, FormEvent, ChangeEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { signIn } from '../services/auth';
+import { FirebaseError } from 'firebase/app';
 
-const Login = () => {
+const Login = (): JSX.Element => {
     const navigate = useNavigate();
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
+    const [email, setEmail] = useState<string>('');
+    const [password, setPassword] = useState<string>('');
+    const [error, setError] = useState<string>('');
+    const [loading, setLoading] = useState<boolean>(false);
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
         e.preventDefault();
         setError('');
         setLoading(true);
@@ -19,7 +20,8 @@ const Login = () => {
             navigate('/');
         } catch (err) {
             console.error('Login error:', err);
-            switch (err.code) {
+            const firebaseError = err as FirebaseError;
+            switch (firebaseError.code) {
                 case 'auth/invalid-email':
                     setError('Invalid email address');
                     break;
@@ -65,7 +67,7 @@ const Login = () => {
                                 className="form-input"
                                 placeholder="your@email.com"
                                 value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
                                 required
                                 disabled={loading}
                             />
@@ -81,7 +83,7 @@ const Login = () => {
                                 className="form-input"
                                 placeholder="Enter your password"
                                 value={password}
-                                onChange={(e) => setPassword(e.target.value)}
+                                onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
                                 required
                                 disabled={loading}
                             />

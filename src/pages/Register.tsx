@@ -1,17 +1,18 @@
-import { useState } from 'react';
+import { useState, FormEvent, ChangeEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { signUp } from '../services/auth';
+import { FirebaseError } from 'firebase/app';
 
-const Register = () => {
+const Register = (): JSX.Element => {
     const navigate = useNavigate();
-    const [name, setName] = useState('');
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
+    const [name, setName] = useState<string>('');
+    const [email, setEmail] = useState<string>('');
+    const [password, setPassword] = useState<string>('');
+    const [confirmPassword, setConfirmPassword] = useState<string>('');
+    const [error, setError] = useState<string>('');
+    const [loading, setLoading] = useState<boolean>(false);
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
         e.preventDefault();
         setError('');
 
@@ -32,7 +33,8 @@ const Register = () => {
             navigate('/');
         } catch (err) {
             console.error('Register error:', err);
-            switch (err.code) {
+            const firebaseError = err as FirebaseError;
+            switch (firebaseError.code) {
                 case 'auth/email-already-in-use':
                     setError('An account with this email already exists');
                     break;
@@ -75,7 +77,7 @@ const Register = () => {
                                 className="form-input"
                                 placeholder="Your name"
                                 value={name}
-                                onChange={(e) => setName(e.target.value)}
+                                onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
                                 required
                                 disabled={loading}
                             />
@@ -91,7 +93,7 @@ const Register = () => {
                                 className="form-input"
                                 placeholder="your@email.com"
                                 value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
                                 required
                                 disabled={loading}
                             />
@@ -107,7 +109,7 @@ const Register = () => {
                                 className="form-input"
                                 placeholder="At least 6 characters"
                                 value={password}
-                                onChange={(e) => setPassword(e.target.value)}
+                                onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
                                 required
                                 disabled={loading}
                             />
@@ -123,7 +125,7 @@ const Register = () => {
                                 className="form-input"
                                 placeholder="Confirm your password"
                                 value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                onChange={(e: ChangeEvent<HTMLInputElement>) => setConfirmPassword(e.target.value)}
                                 required
                                 disabled={loading}
                             />

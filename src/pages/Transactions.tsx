@@ -1,16 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, MouseEvent } from 'react';
+import { Timestamp } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { subscribeToTransactions, subscribeToCategories, subscribeToWallets, deleteTransaction } from '../services/firestore';
 import { formatCurrency, getMonthRange, getMonthName, groupTransactionsByDate } from '../utils/helpers';
+import { Transaction, Category, Wallet } from '../types';
 
-const Transactions = () => {
+const Transactions = (): JSX.Element => {
     const { user } = useAuth();
-    const [transactions, setTransactions] = useState([]);
-    const [categories, setCategories] = useState([]);
-    const [wallets, setWallets] = useState([]);
-    const [currentDate, setCurrentDate] = useState(new Date());
-    const [loading, setLoading] = useState(true);
-    const [selectedTransaction, setSelectedTransaction] = useState(null);
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [wallets, setWallets] = useState<Wallet[]>([]);
+    const [currentDate, setCurrentDate] = useState<Date>(new Date());
+    const [loading, setLoading] = useState<boolean>(true);
+    const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
 
     const { start, end } = getMonthRange(currentDate);
 
@@ -21,7 +23,9 @@ const Transactions = () => {
         const unsubWallets = subscribeToWallets(user.uid, setWallets);
         const unsubTransactions = subscribeToTransactions(user.uid, (txs) => {
             const filtered = txs.filter(t => {
-                const date = t.date?.toDate ? t.date.toDate() : new Date(t.date);
+                const date = (t.date as unknown as Timestamp)?.toDate
+                    ? (t.date as unknown as Timestamp).toDate()
+                    : new Date(t.date);
                 return date >= start && date <= end;
             });
             setTransactions(filtered);
@@ -33,13 +37,13 @@ const Transactions = () => {
             unsubWallets();
             unsubTransactions();
         };
-    }, [user, currentDate]);
+    }, [user, currentDate, start, end]);
 
-    const getCategoryById = (id) => categories.find(c => c.id === id);
-    const getWalletById = (id) => wallets.find(w => w.id === id);
+    const getCategoryById = (id: string): Category | undefined => categories.find(c => c.id === id);
+    const getWalletById = (id: string): Wallet | undefined => wallets.find(w => w.id === id);
     const groupedTransactions = groupTransactionsByDate(transactions);
 
-    const navigateMonth = (direction) => {
+    const navigateMonth = (direction: number): void => {
         setCurrentDate(prev => {
             const newDate = new Date(prev);
             newDate.setMonth(newDate.getMonth() + direction);
@@ -47,8 +51,8 @@ const Transactions = () => {
         });
     };
 
-    const handleDelete = async (transaction) => {
-        if (window.confirm('Delete this transaction?')) {
+    const handleDelete = async (transaction: Transaction): Promise<void> => {
+        if (window.confirm('Delete this transaction?') && user) {
             try {
                 await deleteTransaction(user.uid, transaction.id, transaction);
                 setSelectedTransaction(null);
@@ -129,7 +133,7 @@ const Transactions = () => {
             {/* Transaction Detail Modal */}
             {selectedTransaction && (
                 <div className="modal-overlay" onClick={() => setSelectedTransaction(null)}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-content" onClick={(e: MouseEvent) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h2 className="modal-title">Transaction Details</h2>
                             <button className="btn btn-ghost" onClick={() => setSelectedTransaction(null)}>
@@ -159,7 +163,9 @@ const Transactions = () => {
                                 <div>
                                     <div className="form-label">Date</div>
                                     <div>
-                                        {(selectedTransaction.date?.toDate ? selectedTransaction.date.toDate() : new Date(selectedTransaction.date))
+                                        {((selectedTransaction.date as unknown as Timestamp)?.toDate
+                                            ? (selectedTransaction.date as unknown as Timestamp).toDate()
+                                            : new Date(selectedTransaction.date))
                                             .toLocaleDateString('en-US', {
                                                 weekday: 'long',
                                                 year: 'numeric',

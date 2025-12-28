@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 
-const BottomNav = () => {
+const BottomNav = (): JSX.Element => {
     return (
         <nav className="bottom-nav">
             <NavLink to="/" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} end>

@@ -1,16 +1,26 @@
 import { useState, useEffect } from 'react';
+import { Timestamp } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { subscribeToTransactions, subscribeToCategories } from '../services/firestore';
 import { formatCurrency, getMonthRange, getMonthName, calculateTotals, groupByCategory } from '../utils/helpers';
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import { Transaction, Category } from '../types';
 
-const Reports = () => {
+interface CategoryData {
+    categoryId: string;
+    name: string;
+    icon: string;
+    color: string;
+    total: number;
+}
+
+const Reports = (): JSX.Element => {
     const { user } = useAuth();
-    const [transactions, setTransactions] = useState([]);
-    const [categories, setCategories] = useState([]);
-    const [currentDate, setCurrentDate] = useState(new Date());
-    const [loading, setLoading] = useState(true);
-    const [viewType, setViewType] = useState('expense');
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [currentDate, setCurrentDate] = useState<Date>(new Date());
+    const [loading, setLoading] = useState<boolean>(true);
+    const [viewType, setViewType] = useState<'income' | 'expense'>('expense');
 
     const { start, end } = getMonthRange(currentDate);
 
@@ -20,7 +30,9 @@ const Reports = () => {
         const unsubCategories = subscribeToCategories(user.uid, setCategories);
         const unsubTransactions = subscribeToTransactions(user.uid, (txs) => {
             const filtered = txs.filter(t => {
-                const date = t.date?.toDate ? t.date.toDate() : new Date(t.date);
+                const date = (t.date as unknown as Timestamp)?.toDate
+                    ? (t.date as unknown as Timestamp).toDate()
+                    : new Date(t.date);
                 return date >= start && date <= end;
             });
             setTransactions(filtered);
@@ -31,40 +43,17 @@ const Reports = () => {
             unsubCategories();
             unsubTransactions();
         };
-    }, [user, currentDate]);
+    }, [user, currentDate, start, end]);
 
     const { income, expense } = calculateTotals(transactions);
-    const categoryData = groupByCategory(transactions, categories, viewType);
+    const categoryData: CategoryData[] = groupByCategory(transactions, categories, viewType);
 
-    const navigateMonth = (direction) => {
+    const navigateMonth = (direction: number): void => {
         setCurrentDate(prev => {
             const newDate = new Date(prev);
             newDate.setMonth(newDate.getMonth() + direction);
             return newDate;
         });
-    };
-
-    // Generate last 6 months data for bar chart
-    const getMonthlyData = () => {
-        const data = [];
-        for (let i = 5; i >= 0; i--) {
-            const d = new Date(currentDate);
-            d.setMonth(d.getMonth() - i);
-            const { start: mStart, end: mEnd } = getMonthRange(d);
-
-            const monthTxs = transactions.filter(t => {
-                const date = t.date?.toDate ? t.date.toDate() : new Date(t.date);
-                return date >= mStart && date <= mEnd;
-            });
-
-            const totals = calculateTotals(monthTxs);
-            data.push({
-                month: d.toLocaleDateString('en-US', { month: 'short' }),
-                income: totals.income,
-                expense: totals.expense
-            });
-        }
-        return data;
     };
 
     if (loading) {
@@ -177,7 +166,7 @@ const Reports = () => {
                 </div>
             </div>
 
-            {/* Monthly Trend (placeholder for multi-month data) */}
+            {/* Monthly Trend */}
             <div className="container" style={{ marginTop: '16px' }}>
                 <div className="card">
                     <h3 className="card-title" style={{ marginBottom: '16px' }}>Balance</h3>

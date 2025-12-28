@@ -1,5 +1,11 @@
+import { Timestamp } from 'firebase/firestore';
+import { Category, Transaction } from '../types';
+
+// Date type that can be Firestore Timestamp or Date
+type DateLike = Date | Timestamp | { toDate: () => Date };
+
 // Format number as currency (Indonesian Rupiah style)
-export const formatCurrency = (amount, currency = 'IDR') => {
+export const formatCurrency = (amount: number, currency: string = 'IDR'): string => {
     return new Intl.NumberFormat('id-ID', {
         style: 'currency',
         currency: currency,
@@ -9,8 +15,8 @@ export const formatCurrency = (amount, currency = 'IDR') => {
 };
 
 // Format date to readable string
-export const formatDate = (date, format = 'short') => {
-    const d = date?.toDate ? date.toDate() : new Date(date);
+export const formatDate = (date: DateLike, format: 'short' | 'full' | 'input' = 'short'): string => {
+    const d = (date as Timestamp)?.toDate ? (date as Timestamp).toDate() : new Date(date as Date);
 
     if (format === 'short') {
         return new Intl.DateTimeFormat('en-US', {
@@ -36,19 +42,25 @@ export const formatDate = (date, format = 'short') => {
 };
 
 // Get start and end of month
-export const getMonthRange = (date = new Date()) => {
+export const getMonthRange = (date: Date = new Date()): { start: Date; end: Date } => {
     const start = new Date(date.getFullYear(), date.getMonth(), 1);
     const end = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59);
     return { start, end };
 };
 
 // Get month name
-export const getMonthName = (date = new Date()) => {
+export const getMonthName = (date: Date = new Date()): string => {
     return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(date);
 };
 
+// Totals interface
+interface Totals {
+    income: number;
+    expense: number;
+}
+
 // Calculate total from transactions
-export const calculateTotals = (transactions) => {
+export const calculateTotals = (transactions: Transaction[]): Totals => {
     return transactions.reduce((acc, t) => {
         if (t.type === 'income') {
             acc.income += t.amount;
@@ -59,12 +71,20 @@ export const calculateTotals = (transactions) => {
     }, { income: 0, expense: 0 });
 };
 
+// Date group interface
+interface DateGroup {
+    date: Date;
+    transactions: Transaction[];
+}
+
 // Group transactions by date
-export const groupTransactionsByDate = (transactions) => {
-    const groups = {};
+export const groupTransactionsByDate = (transactions: Transaction[]): DateGroup[] => {
+    const groups: Record<string, DateGroup> = {};
 
     transactions.forEach(t => {
-        const date = t.date?.toDate ? t.date.toDate() : new Date(t.date);
+        const date = (t.date as unknown as Timestamp)?.toDate
+            ? (t.date as unknown as Timestamp).toDate()
+            : new Date(t.date);
         const key = date.toISOString().split('T')[0];
 
         if (!groups[key]) {
@@ -76,13 +96,26 @@ export const groupTransactionsByDate = (transactions) => {
         groups[key].transactions.push(t);
     });
 
-    return Object.values(groups).sort((a, b) => b.date - a.date);
+    return Object.values(groups).sort((a, b) => b.date.getTime() - a.date.getTime());
 };
 
+// Category group interface
+interface CategoryGroup {
+    categoryId: string;
+    name: string;
+    icon: string;
+    color: string;
+    total: number;
+}
+
 // Group transactions by category for chart
-export const groupByCategory = (transactions, categories, type = 'expense') => {
+export const groupByCategory = (
+    transactions: Transaction[],
+    categories: Category[],
+    type: 'income' | 'expense' = 'expense'
+): CategoryGroup[] => {
     const filtered = transactions.filter(t => t.type === type);
-    const grouped = {};
+    const grouped: Record<string, CategoryGroup> = {};
 
     filtered.forEach(t => {
         if (!grouped[t.categoryId]) {

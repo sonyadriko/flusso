@@ -7,22 +7,33 @@ import {
     getDocs,
     getDoc,
     query,
-    where,
     orderBy,
     onSnapshot,
     serverTimestamp,
-    writeBatch
+    writeBatch,
+    CollectionReference,
+    DocumentData,
+    Unsubscribe,
+    Timestamp
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { Category, Wallet, Transaction } from '../types';
 
 // Helper to get user's collection reference
-const getUserCollection = (userId, collectionName) => {
+const getUserCollection = (userId: string, collectionName: string): CollectionReference<DocumentData> => {
     return collection(db, 'users', userId, collectionName);
 };
 
 // ==================== WALLETS ====================
 
-export const addWallet = async (userId, wallet) => {
+export interface WalletInput {
+    name: string;
+    type: 'cash' | 'bank' | 'e-wallet' | 'credit';
+    icon: string;
+    balance?: number;
+}
+
+export const addWallet = async (userId: string, wallet: WalletInput): Promise<string> => {
     const ref = getUserCollection(userId, 'wallets');
     const docRef = await addDoc(ref, {
         ...wallet,
@@ -32,35 +43,42 @@ export const addWallet = async (userId, wallet) => {
     return docRef.id;
 };
 
-export const updateWallet = async (userId, walletId, data) => {
+export const updateWallet = async (userId: string, walletId: string, data: Partial<Wallet>): Promise<void> => {
     const ref = doc(db, 'users', userId, 'wallets', walletId);
     await updateDoc(ref, data);
 };
 
-export const deleteWallet = async (userId, walletId) => {
+export const deleteWallet = async (userId: string, walletId: string): Promise<void> => {
     const ref = doc(db, 'users', userId, 'wallets', walletId);
     await deleteDoc(ref);
 };
 
-export const getWallets = async (userId) => {
+export const getWallets = async (userId: string): Promise<Wallet[]> => {
     const ref = getUserCollection(userId, 'wallets');
     const q = query(ref, orderBy('createdAt', 'asc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Wallet));
 };
 
-export const subscribeToWallets = (userId, callback) => {
+export const subscribeToWallets = (userId: string, callback: (wallets: Wallet[]) => void): Unsubscribe => {
     const ref = getUserCollection(userId, 'wallets');
     const q = query(ref, orderBy('createdAt', 'asc'));
     return onSnapshot(q, (snapshot) => {
-        const wallets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const wallets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Wallet));
         callback(wallets);
     });
 };
 
 // ==================== CATEGORIES ====================
 
-export const addCategory = async (userId, category) => {
+export interface CategoryInput {
+    name: string;
+    type: 'income' | 'expense';
+    icon: string;
+    color?: string;
+}
+
+export const addCategory = async (userId: string, category: CategoryInput): Promise<string> => {
     const ref = getUserCollection(userId, 'categories');
     const docRef = await addDoc(ref, {
         ...category,
@@ -69,38 +87,38 @@ export const addCategory = async (userId, category) => {
     return docRef.id;
 };
 
-export const updateCategory = async (userId, categoryId, data) => {
+export const updateCategory = async (userId: string, categoryId: string, data: Partial<Category>): Promise<void> => {
     const ref = doc(db, 'users', userId, 'categories', categoryId);
     await updateDoc(ref, data);
 };
 
-export const deleteCategory = async (userId, categoryId) => {
+export const deleteCategory = async (userId: string, categoryId: string): Promise<void> => {
     const ref = doc(db, 'users', userId, 'categories', categoryId);
     await deleteDoc(ref);
 };
 
-export const getCategories = async (userId) => {
+export const getCategories = async (userId: string): Promise<Category[]> => {
     const ref = getUserCollection(userId, 'categories');
     const q = query(ref, orderBy('createdAt', 'asc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
 };
 
-export const subscribeToCategories = (userId, callback) => {
+export const subscribeToCategories = (userId: string, callback: (categories: Category[]) => void): Unsubscribe => {
     const ref = getUserCollection(userId, 'categories');
     const q = query(ref, orderBy('createdAt', 'asc'));
     return onSnapshot(q, (snapshot) => {
-        const categories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const categories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
         callback(categories);
     });
 };
 
 // Initialize default categories for new user
-export const initializeDefaultCategories = async (userId) => {
+export const initializeDefaultCategories = async (userId: string): Promise<void> => {
     const batch = writeBatch(db);
     const ref = getUserCollection(userId, 'categories');
 
-    const defaultCategories = [
+    const defaultCategories: CategoryInput[] = [
         // Income categories
         { name: 'Salary', type: 'income', icon: '💰', color: '#4CAF50' },
         { name: 'Bonus', type: 'income', icon: '🎁', color: '#8BC34A' },
@@ -127,7 +145,7 @@ export const initializeDefaultCategories = async (userId) => {
 };
 
 // Initialize default wallet for new user
-export const initializeDefaultWallet = async (userId) => {
+export const initializeDefaultWallet = async (userId: string): Promise<void> => {
     const ref = getUserCollection(userId, 'wallets');
     await addDoc(ref, {
         name: 'Cash',
@@ -140,7 +158,21 @@ export const initializeDefaultWallet = async (userId) => {
 
 // ==================== TRANSACTIONS ====================
 
-export const addTransaction = async (userId, transaction) => {
+export interface TransactionInput {
+    type: 'income' | 'expense';
+    amount: number;
+    categoryId: string;
+    walletId: string;
+    date: Date | Timestamp;
+    note?: string;
+}
+
+export interface TransactionFilters {
+    startDate?: Date;
+    endDate?: Date;
+}
+
+export const addTransaction = async (userId: string, transaction: TransactionInput): Promise<string> => {
     const ref = getUserCollection(userId, 'transactions');
     const docRef = await addDoc(ref, {
         ...transaction,
@@ -161,7 +193,12 @@ export const addTransaction = async (userId, transaction) => {
     return docRef.id;
 };
 
-export const updateTransaction = async (userId, transactionId, data, oldTransaction) => {
+export const updateTransaction = async (
+    userId: string,
+    transactionId: string,
+    data: Partial<TransactionInput>,
+    oldTransaction?: Transaction
+): Promise<void> => {
     const ref = doc(db, 'users', userId, 'transactions', transactionId);
     await updateDoc(ref, data);
 
@@ -194,7 +231,11 @@ export const updateTransaction = async (userId, transactionId, data, oldTransact
     }
 };
 
-export const deleteTransaction = async (userId, transactionId, transaction) => {
+export const deleteTransaction = async (
+    userId: string,
+    transactionId: string,
+    transaction?: Transaction
+): Promise<void> => {
     const ref = doc(db, 'users', userId, 'transactions', transactionId);
     await deleteDoc(ref);
 
@@ -212,32 +253,33 @@ export const deleteTransaction = async (userId, transactionId, transaction) => {
     }
 };
 
-export const getTransactions = async (userId, filters = {}) => {
+export const getTransactions = async (
+    userId: string,
+    _filters: TransactionFilters = {}
+): Promise<Transaction[]> => {
     const ref = getUserCollection(userId, 'transactions');
-    let q = query(ref, orderBy('date', 'desc'));
-
-    if (filters.startDate) {
-        q = query(q, where('date', '>=', filters.startDate));
-    }
-    if (filters.endDate) {
-        q = query(q, where('date', '<=', filters.endDate));
-    }
-
+    const q = query(ref, orderBy('date', 'desc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
 };
 
-export const subscribeToTransactions = (userId, callback, filters = {}) => {
+export const subscribeToTransactions = (
+    userId: string,
+    callback: (transactions: Transaction[]) => void,
+    filters: TransactionFilters = {}
+): Unsubscribe => {
     const ref = getUserCollection(userId, 'transactions');
     const q = query(ref, orderBy('date', 'desc'));
 
     return onSnapshot(q, (snapshot) => {
-        let transactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        let transactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
 
         // Apply client-side filters if needed
         if (filters.startDate || filters.endDate) {
             transactions = transactions.filter(t => {
-                const date = t.date?.toDate ? t.date.toDate() : new Date(t.date);
+                const date = (t.date as unknown as Timestamp)?.toDate
+                    ? (t.date as unknown as Timestamp).toDate()
+                    : new Date(t.date);
                 if (filters.startDate && date < filters.startDate) return false;
                 if (filters.endDate && date > filters.endDate) return false;
                 return true;

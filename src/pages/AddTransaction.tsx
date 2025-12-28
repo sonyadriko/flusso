@@ -1,22 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Timestamp } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { subscribeToCategories, subscribeToWallets, addTransaction } from '../services/firestore';
 import { formatCurrency } from '../utils/helpers';
-import { Timestamp } from 'firebase/firestore';
+import { Category, Wallet } from '../types';
 
-const AddTransaction = () => {
+const AddTransaction = (): JSX.Element => {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const [type, setType] = useState('expense');
-    const [amount, setAmount] = useState('0');
-    const [categoryId, setCategoryId] = useState('');
-    const [walletId, setWalletId] = useState('');
-    const [note, setNote] = useState('');
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-    const [categories, setCategories] = useState([]);
-    const [wallets, setWallets] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const [type, setType] = useState<'income' | 'expense'>('expense');
+    const [amount, setAmount] = useState<string>('0');
+    const [categoryId, setCategoryId] = useState<string>('');
+    const [walletId, setWalletId] = useState<string>('');
+    const [note, setNote] = useState<string>('');
+    const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [wallets, setWallets] = useState<Wallet[]>([]);
+    const [loading, setLoading] = useState<boolean>(false);
 
     useEffect(() => {
         if (!user) return;
@@ -33,7 +34,7 @@ const AddTransaction = () => {
             unsubCategories();
             unsubWallets();
         };
-    }, [user]);
+    }, [user, walletId]);
 
     const filteredCategories = categories.filter(c => c.type === type);
 
@@ -42,7 +43,7 @@ const AddTransaction = () => {
         setCategoryId('');
     }, [type]);
 
-    const handleNumberPress = (num) => {
+    const handleNumberPress = (num: string): void => {
         if (amount === '0') {
             setAmount(num);
         } else if (amount.length < 12) {
@@ -50,7 +51,7 @@ const AddTransaction = () => {
         }
     };
 
-    const handleBackspace = () => {
+    const handleBackspace = (): void => {
         if (amount.length > 1) {
             setAmount(amount.slice(0, -1));
         } else {
@@ -58,12 +59,12 @@ const AddTransaction = () => {
         }
     };
 
-    const handleClear = () => {
+    const handleClear = (): void => {
         setAmount('0');
     };
 
-    const handleSubmit = async () => {
-        if (amount === '0' || !categoryId || !walletId) {
+    const handleSubmit = async (): Promise<void> => {
+        if (amount === '0' || !categoryId || !walletId || !user) {
             return;
         }
 
@@ -169,7 +170,7 @@ const AddTransaction = () => {
                         type="date"
                         className="form-input"
                         value={date}
-                        onChange={(e) => setDate(e.target.value)}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => setDate(e.target.value)}
                     />
                 </div>
 
@@ -181,7 +182,7 @@ const AddTransaction = () => {
                         className="form-input"
                         placeholder="Add a note..."
                         value={note}
-                        onChange={(e) => setNote(e.target.value)}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => setNote(e.target.value)}
                     />
                 </div>
             </div>
